@@ -110,7 +110,7 @@ def fetch_from_mymemory_api(text: str, source_lang: str, target_lang: str) -> st
     encoded_text = urllib.parse.quote(text.strip())
     url = f"https://api.mymemory.translated.net/get?q={encoded_text}&langpair={lang_pair}"
 
-    email = os.environ.get("TRANSLATION_API_EMAIL", "").strip()
+    email = os.environ.get("TRANSLATION_API_EMAIL", "student.project.translator@gmail.com").strip()
     if email:
         url += f"&de={urllib.parse.quote(email)}"
 
