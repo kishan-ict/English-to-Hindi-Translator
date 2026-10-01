@@ -1,0 +1,13 @@
+# requirements.txt
+# College Semester Project: English-to-Hindi Translator
+#
+# NOTE: The core translation and API logic uses Python's standard library
+# (urllib.request, json, http.server), which requires NO external pip packages!
+# This makes local execution and Cloudflare Workers deployment ultra-fast, lightweight,
+# and completely free of bulky dependencies.
+
+# Optional: If you wish to use python-dotenv for local .env file loading:
+# python-dotenv>=1.0.0
+
+# Optional: If you wish to use requests instead of urllib in local development:
+# requests>=2.31.0

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Translator - English to Hindi</title>
+  <meta name="description" content="A simple and clean English to Hindi translation web application for college semester project.">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <div class="page-container">
+    
+    <!-- Minimal Header -->
+    <header class="header">
+      <h1 class="title">Text Translator</h1>
+      <p class="subtitle">Simple English to Hindi Translation</p>
+    </header>
+
+    <!-- Notification / Error Message Banner -->
+    <div id="status-banner" class="status-banner hidden" role="alert">
+      <span id="status-text"></span>
+      <button id="close-banner-btn" class="close-banner-btn" aria-label="Close message">&times;</button>
+    </div>
+
+    <!-- Main Translator Card -->
+    <main class="translator-card">
+      
+      <!-- Input Panel (Source Language) -->
+      <section class="panel input-panel">
+        <div class="panel-header">
+          <label for="source-lang" class="panel-label">From:</label>
+          <select id="source-lang" class="language-select" aria-label="Source Language">
+            <option value="en" selected>English</option>
+            <option value="hi">Hindi</option>
+          </select>
+        </div>
+
+        <div class="textarea-container">
+          <textarea 
+            id="input-text" 
+            class="translation-textarea" 
+            placeholder="Enter text to translate..." 
+            maxlength="5000"
+            rows="7"
+            aria-label="Enter text to translate"
+            autofocus
+          ></textarea>
+        </div>
+
+        <div class="panel-footer">
+          <span id="char-count" class="char-count">0 / 5000</span>
+          <button id="clear-btn" type="button" class="btn btn-outline" title="Clear input text">
+            Clear
+          </button>
+        </div>
+      </section>
+
+      <!-- Central Controls / Action Bar -->
+      <div class="controls-divider">
+        <button id="swap-btn" type="button" class="btn btn-swap" title="Swap Languages" aria-label="Swap Languages">
+          <span class="swap-icon" aria-hidden="true">&#8646;</span>
+          <span class="swap-label">Swap</span>
+        </button>
+
+        <button id="translate-btn" type="button" class="btn btn-primary">
+          <span id="translate-btn-text">Translate</span>
+        </button>
+      </div>
+
+      <!-- Output Panel (Target Language) -->
+      <section class="panel output-panel">
+        <div class="panel-header">
+          <label for="target-lang" class="panel-label">To:</label>
+          <select id="target-lang" class="language-select" aria-label="Target Language">
+            <option value="hi" selected>Hindi</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+
+        <div class="textarea-container">
+          <textarea 
+            id="output-text" 
+            class="translation-textarea output-area" 
+            placeholder="Your translation will appear here..." 
+            readonly 
+            rows="7"
+            aria-label="Translated output text"
+          ></textarea>
+        </div>
+
+        <div class="panel-footer">
+          <div class="output-status" id="output-status"></div>
+          <button id="copy-btn" type="button" class="btn btn-outline" title="Copy translation to clipboard">
+            Copy
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Minimal Helpful Footer -->
+    <footer class="footer">
+      <p class="footer-tip">Keyboard shortcut: <strong>Ctrl + Enter</strong> to translate</p>
+      <p class="footer-credit">College Semester Project &bull; Python Backend &bull; Cloudflare Architecture</p>
+    </footer>
+
+  </div>
+
+  <!-- Vanilla JavaScript Interaction -->
+  <script src="/script.js"></script>
+</body>
+</html>

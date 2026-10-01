@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Environment and Secrets
+.env
+.env.local
+.env.*.local
+
+# Cloudflare Wrangler
+.wrangler/
+wrangler-dist/
+
+# Node & Package Managers
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

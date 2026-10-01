@@ -1,0 +1,6 @@
+{
+  "name": "English to Hindi Translator",
+  "description": "A clean, lightweight college semester project web application that translates text between English and Hindi, built with Python, HTML5, CSS3, and vanilla JavaScript designed for Cloudflare.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

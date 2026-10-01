@@ -1,0 +1,17 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "english-to-hindi-translator"
+main = "src/main.py"
+compatibility_date = "2024-04-03"
+compatibility_flags = ["python_workers"]
+
+# Cloudflare Workers Static Assets
+# Serves static frontend assets (HTML, CSS, JS) from the 'public' folder directly at the root URL.
+# Any /api/* routes fall through to the Python Worker in src/main.py.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# Optional environment variables
+# For production secrets (like API keys), use: wrangler secret put <KEY_NAME>
+[vars]
+# TRANSLATION_API_EMAIL = "student@college.edu"
