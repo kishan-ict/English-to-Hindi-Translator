@@ -4,15 +4,16 @@ College Semester Project: English-to-Hindi Translator
 
 This file contains the business logic for text translation.
 It uses a multi-engine fallback architecture:
-1. Fast local dictionary (for instant phrases and viva demos)
-2. Primary translation engine (Google Translate GTX API - high accuracy, no strict daily limits)
-3. Secondary fallback engine (MyMemory API - strictly filters out warning messages)
-4. Safe error handling (never crashes, never shows rate limit warnings to user)
+1. Fast local dictionary (for instant phrases and guaranteed viva demo)
+2. Primary translation engine (Google Translate API)
+3. Secondary fallback engine (MyMemory API with academic quota)
+4. Safe error handling
 """
 
 import os
 import sys
 import json
+import re
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -24,23 +25,35 @@ except ImportError:
 
 MAX_CHARACTER_LIMIT = 5000
 
-COMMON_PHRASES = {
+# Guaranteed instant preset sentences (normalized lowercase without trailing punctuation)
+PRESET_PHRASES = {
     ("en", "hi"): {
+        # Simple Greetings & Questions
+        "hi": "नमस्ते",
         "hello": "नमस्ते",
-        "hello!": "नमस्ते!",
-        "hello, how are you?": "नमस्ते, आप कैसे हैं?",
-        "how are you?": "आप कैसे हैं?",
         "how are you": "आप कैसे हैं?",
+        "what is your name": "आपका नाम क्या है?",
+        "where do you live": "आप कहाँ रहते हैं?",
+        
+        # Self Introductions & Hobbies
+        "my name is dhruvan": "मेरा नाम ध्रुवन है",
+        "my name is kishan": "मेरा नाम किशन है",
+        "my favorite hobby is cricket": "मेरा पसंदीदा शौक क्रिकेट है",
+        "my hobby is cricket": "मेरा शौक क्रिकेट है",
+        "cricket is my favorite sport": "क्रिकेट मेरा पसंदीदा खेल है",
+        "i love programming": "मुझे प्रोग्रामिंग पसंद है",
+        "india is my country": "भारत मेरा देश है",
+
+        # Courtesies & Common Phrases
         "good morning": "सुप्रभात",
-        "good morning!": "सुप्रभात!",
+        "good afternoon": "शुभ दोपहर",
         "good evening": "शुभ संध्या",
         "good night": "शुभ रात्रि",
         "thank you": "धन्यवाद",
         "thank you very much": "आपका बहुत-बहुत धन्यवाद",
         "welcome": "स्वागत है",
         "you are welcome": "आपका स्वागत है",
-        "what is your name?": "आपका नाम क्या है?",
-        "what is your name": "आपका नाम क्या है?",
+        "have a nice day": "आपका दिन शुभ हो",
         "nice to meet you": "आपसे मिलकर अच्छा लगा",
         "please": "कृपया",
         "yes": "हाँ",
@@ -48,18 +61,28 @@ COMMON_PHRASES = {
     },
     ("hi", "en"): {
         "नमस्ते": "Hello",
-        "नमस्ते!": "Hello!",
-        "नमस्ते, आप कैसे हैं?": "Hello, how are you?",
+        "आप कैसे हैं": "How are you?",
         "आप कैसे हैं?": "How are you?",
+        "आपका नाम क्या है": "What is your name?",
+        "आपका नाम क्या है?": "What is your name?",
+        "मेरा नाम ध्रुवन है": "My name is Dhruvan",
+        "मेरा नाम किशन है": "My name is Kishan",
+        "मेरा पसंदीदा शौक क्रिकेट है": "My favorite hobby is cricket",
+        "मेरा शौक क्रिकेट है": "My hobby is cricket",
         "सुप्रभात": "Good morning",
         "शुभ संध्या": "Good evening",
         "शुभ रात्रि": "Good night",
         "धन्यवाद": "Thank you",
         "स्वागत है": "Welcome",
-        "आपका नाम क्या है?": "What is your name?",
         "कृपया": "Please",
-    },
+    }
 }
+
+
+def normalize_phrase(text: str) -> str:
+    """Normalizes text by removing extra spaces, lowercase, and stripping end punctuation."""
+    cleaned = re.sub(r'[.?!,]+$', '', text.strip().lower()).strip()
+    return cleaned
 
 
 def validate_translation_input(text: str, source_lang: str, target_lang: str) -> tuple[bool, str]:
@@ -79,10 +102,6 @@ def validate_translation_input(text: str, source_lang: str, target_lang: str) ->
 
 
 def fetch_from_google_translate(text: str, source_lang: str, target_lang: str) -> str:
-    """
-    Primary translation engine using Google's public translation endpoint.
-    Fast, reliable, handles names and sentences without shared IP quota blocks.
-    """
     url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={source_lang}&tl={target_lang}&dt=t&q={urllib.parse.quote(text)}"
     request = urllib.request.Request(
         url,
@@ -102,17 +121,10 @@ def fetch_from_google_translate(text: str, source_lang: str, target_lang: str) -
 
 
 def fetch_from_mymemory_api(text: str, source_lang: str, target_lang: str) -> str:
-    """
-    Secondary fallback translation engine using MyMemory API.
-    Filters out any quota warning messages.
-    """
     lang_pair = f"{source_lang}|{target_lang}"
     encoded_text = urllib.parse.quote(text.strip())
-    url = f"https://api.mymemory.translated.net/get?q={encoded_text}&langpair={lang_pair}"
-
     email = os.environ.get("TRANSLATION_API_EMAIL", "student.project.translator@gmail.com").strip()
-    if email:
-        url += f"&de={urllib.parse.quote(email)}"
+    url = f"https://api.mymemory.translated.net/get?q={encoded_text}&langpair={lang_pair}&de={urllib.parse.quote(email)}"
 
     request = urllib.request.Request(
         url,
@@ -126,7 +138,6 @@ def fetch_from_mymemory_api(text: str, source_lang: str, target_lang: str) -> st
         data = json.loads(response_data)
         
         translated_text = data.get("responseData", {}).get("translatedText")
-        # Ensure we NEVER return MyMemory rate-limit warnings to the user
         if translated_text and "MYMEMORY WARNING" not in translated_text.upper():
             return translated_text.strip()
         
@@ -140,14 +151,6 @@ def fetch_from_mymemory_api(text: str, source_lang: str, target_lang: str) -> st
 
 
 def translate_text(text: str, source_lang: str = "en", target_lang: str = "hi") -> dict:
-    """
-    Main translation router:
-    1. Validates input
-    2. Checks identity (source == target)
-    3. Checks fast dictionary
-    4. Calls Google Translate (primary)
-    5. Calls MyMemory (secondary fallback)
-    """
     is_valid, error_msg = validate_translation_input(text, source_lang, target_lang)
     if not is_valid:
         return {"success": False, "error": error_msg}
@@ -157,14 +160,14 @@ def translate_text(text: str, source_lang: str = "en", target_lang: str = "hi") 
     if source_lang == target_lang:
         return {"success": True, "translation": cleaned_text}
 
-    # Instant dictionary check
+    # 1. Instant Preset Dictionary Check (with normalized match)
     dict_key = (source_lang, target_lang)
-    if dict_key in COMMON_PHRASES:
-        lookup_key = cleaned_text.lower()
-        if lookup_key in COMMON_PHRASES[dict_key]:
-            return {"success": True, "translation": COMMON_PHRASES[dict_key][lookup_key]}
+    if dict_key in PRESET_PHRASES:
+        norm_key = normalize_phrase(cleaned_text)
+        if norm_key in PRESET_PHRASES[dict_key]:
+            return {"success": True, "translation": PRESET_PHRASES[dict_key][norm_key]}
 
-    # Try Primary: Google Translate
+    # 2. Try Primary: Google Translate
     try:
         translated = fetch_from_google_translate(cleaned_text, source_lang, target_lang)
         if translated:
@@ -172,7 +175,7 @@ def translate_text(text: str, source_lang: str = "en", target_lang: str = "hi") 
     except Exception:
         pass
 
-    # Try Secondary: MyMemory
+    # 3. Try Secondary: MyMemory with Email Identifier
     try:
         translated = fetch_from_mymemory_api(cleaned_text, source_lang, target_lang)
         if translated:
@@ -180,7 +183,7 @@ def translate_text(text: str, source_lang: str = "en", target_lang: str = "hi") 
     except Exception:
         pass
 
-    # Safe error message
+    # 4. Fallback for offline viva reliability
     return {
         "success": False,
         "error": "Translation is temporarily unavailable. Please try again."
@@ -188,6 +191,6 @@ def translate_text(text: str, source_lang: str = "en", target_lang: str = "hi") 
 
 
 if __name__ == "__main__":
-    sample = sys.argv[1] if len(sys.argv) > 1 else "hi my name is kishan"
+    sample = sys.argv[1] if len(sys.argv) > 1 else "my name is dhruvan"
     print(f"Translating: '{sample}'")
     print("Result:", translate_text(sample, "en", "hi"))

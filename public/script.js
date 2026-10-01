@@ -4,6 +4,7 @@
  * 
  * Responsibilities:
  * - Character count display
+ * - Quick preset example chips
  * - Sending translation request to backend API (/api/translate)
  * - Transparent client-side fallback if backend encounters IP blocks
  * - Updating UI with response / error messages
@@ -28,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const statusText = document.getElementById("status-text");
   const closeBannerBtn = document.getElementById("close-banner-btn");
   const outputStatus = document.getElementById("output-status");
+  const exampleChips = document.querySelectorAll(".example-chip");
 
   const MAX_CHARS = 5000;
 
@@ -137,7 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // --------------------------------------------------------------------------
-  // 6. Direct Client Fallback (Bypasses server/Cloudflare IP blocks entirely)
+  // 6. Direct Client Fallback (Guaranteed to bypass server IP limits)
   // --------------------------------------------------------------------------
   async function fetchDirectTranslation(text, sourceLang, targetLang) {
     // 1. MyMemory with academic email parameter
@@ -225,7 +227,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     } catch (e) {
-      // Backend failed, will proceed to client fallback
+      // Backend error, will proceed to client fallback
     }
 
     // Step 2: Resilient Client-Side Fallback if backend was blocked by Cloudflare IP
@@ -258,7 +260,24 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // --------------------------------------------------------------------------
-  // 8. Dynamic Languages Loader
+  // 8. Quick Example Chips Click Handlers
+  // --------------------------------------------------------------------------
+  exampleChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const sample = chip.getAttribute("data-sample");
+      if (sample) {
+        sourceLangSelect.value = "en";
+        targetLangSelect.value = "hi";
+        inputText.value = sample;
+        updateCharCount();
+        hideError();
+        performTranslation();
+      }
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 9. Dynamic Languages Loader
   // --------------------------------------------------------------------------
   async function loadSupportedLanguages() {
     try {

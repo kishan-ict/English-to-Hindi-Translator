@@ -63,13 +63,13 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 /* --- Minimal Header --- */
 .header {
   text-align: center;
-  padding: 0.5rem 0 1rem;
+  padding: 0.5rem 0 0.5rem;
 }
 
 .title {
@@ -276,6 +276,53 @@ body {
   }
 }
 
+/* --- Quick Examples / Presets Bar --- */
+.quick-examples-container {
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.examples-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.example-chips-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.example-chip {
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.825rem;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.example-chip:hover {
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.example-chip:active {
+  background-color: #cbd5e1;
+}
+
 /* --- Buttons --- */
 .btn {
   font-family: inherit;
@@ -354,12 +401,12 @@ body {
 /* --- Footer --- */
 .footer {
   text-align: center;
-  padding: 1rem 0;
+  padding: 0.5rem 0;
   color: var(--text-muted);
   font-size: 0.875rem;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.3rem;
 }
 
 .footer-tip {
