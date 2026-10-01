@@ -3,11 +3,11 @@ translation.py - Core Translation Logic & Service
 College Semester Project: English-to-Hindi Translator
 
 This file contains the business logic for text translation.
-It handles:
-1. Input validation (empty text check, character limits, language validation).
-2. Offline dictionary lookup for instant demo and viva testing.
-3. Network translation via MyMemory API (free, reliable, no API key required).
-4. Safe error handling (never crashes, returns clean user-friendly messages).
+It uses a multi-engine fallback architecture:
+1. Fast local dictionary (for instant phrases and viva demos)
+2. Primary translation engine (Google Translate GTX API - high accuracy, no strict daily limits)
+3. Secondary fallback engine (MyMemory API - strictly filters out warning messages)
+4. Safe error handling (never crashes, never shows rate limit warnings to user)
 """
 
 import os
@@ -17,18 +17,14 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-# Import our language validation rules
 try:
     from src.languages import is_valid_language, get_language_name
 except ImportError:
     from languages import is_valid_language, get_language_name
 
-# Maximum allowed text length in characters
 MAX_CHARACTER_LIMIT = 5000
 
-# Built-in phrase dictionary for instant demonstration and offline viva fallback
 COMMON_PHRASES = {
-    # English -> Hindi
     ("en", "hi"): {
         "hello": "नमस्ते",
         "hello!": "नमस्ते!",
@@ -49,202 +45,149 @@ COMMON_PHRASES = {
         "please": "कृपया",
         "yes": "हाँ",
         "no": "नहीं",
-        "see you later": "फिर मिलेंगे",
-        "take care": "अपना ख्याल रखना",
-        "congratulations": "बधाई हो",
     },
-    # Hindi -> English (supports swapping languages)
     ("hi", "en"): {
         "नमस्ते": "Hello",
         "नमस्ते!": "Hello!",
         "नमस्ते, आप कैसे हैं?": "Hello, how are you?",
         "आप कैसे हैं?": "How are you?",
-        "आप कैसे हैं": "How are you?",
         "सुप्रभात": "Good morning",
-        "सुप्रभात!": "Good morning!",
         "शुभ संध्या": "Good evening",
         "शुभ रात्रि": "Good night",
         "धन्यवाद": "Thank you",
-        "आपका बहुत-बहुत धन्यवाद": "Thank you very much",
         "स्वागत है": "Welcome",
-        "आपका स्वागत है": "You are welcome",
         "आपका नाम क्या है?": "What is your name?",
-        "आपका नाम क्या है": "What is your name?",
-        "आपसे मिलकर अच्छा लगा": "Nice to meet you",
         "कृपया": "Please",
-        "हाँ": "Yes",
-        "नहीं": "No",
-        "फिर मिलेंगे": "See you later",
-        "अपना ख्याल रखना": "Take care",
-        "बधाई हो": "Congratulations",
     },
 }
 
 
 def validate_translation_input(text: str, source_lang: str, target_lang: str) -> tuple[bool, str]:
-    """
-    Validates the user input before attempting translation.
-    
-    Returns:
-        (is_valid, error_message): Tuple where is_valid is True if valid,
-                                  otherwise False with an explanation message.
-    """
-    # 1. Check for empty or whitespace-only text
     if not text or not text.strip():
         return False, "Please enter some text to translate."
 
-    # 2. Check maximum character limit
     if len(text) > MAX_CHARACTER_LIMIT:
         return False, f"Text is too long. Maximum allowed is {MAX_CHARACTER_LIMIT} characters."
 
-    # 3. Check if source language is supported
     if not is_valid_language(source_lang):
         return False, f"Unsupported source language: '{source_lang}'."
 
-    # 4. Check if target language is supported
     if not is_valid_language(target_lang):
         return False, f"Unsupported target language: '{target_lang}'."
 
     return True, ""
 
 
+def fetch_from_google_translate(text: str, source_lang: str, target_lang: str) -> str:
+    """
+    Primary translation engine using Google's public translation endpoint.
+    Fast, reliable, handles names and sentences without shared IP quota blocks.
+    """
+    url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={source_lang}&tl={target_lang}&dt=t&q={urllib.parse.quote(text)}"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        }
+    )
+
+    with urllib.request.urlopen(request, timeout=5) as response:
+        data = json.loads(response.read().decode("utf-8"))
+        if data and isinstance(data, list) and len(data) > 0 and data[0]:
+            parts = [part[0] for part in data[0] if part and len(part) > 0 and part[0]]
+            if parts:
+                return "".join(parts).strip()
+
+    raise RuntimeError("Google translate returned empty result")
+
+
 def fetch_from_mymemory_api(text: str, source_lang: str, target_lang: str) -> str:
     """
-    Fetches the translation using the MyMemory Translation API.
-    MyMemory is a free, publicly available translation service.
-    No API key is required for basic usage.
-    
-    Args:
-        text (str): The text to translate.
-        source_lang (str): Source language code (e.g. 'en').
-        target_lang (str): Target language code (e.g. 'hi').
-        
-    Returns:
-        str: Translated text.
-        
-    Raises:
-        Exception: If the network request fails or API returns an error.
+    Secondary fallback translation engine using MyMemory API.
+    Filters out any quota warning messages.
     """
-    # Language pair format: "en|hi"
     lang_pair = f"{source_lang}|{target_lang}"
     encoded_text = urllib.parse.quote(text.strip())
-    
-    # Base URL for MyMemory API
     url = f"https://api.mymemory.translated.net/get?q={encoded_text}&langpair={lang_pair}"
-    
-    # Optional email parameter from environment variables to increase daily quota
+
     email = os.environ.get("TRANSLATION_API_EMAIL", "").strip()
     if email:
         url += f"&de={urllib.parse.quote(email)}"
 
-    # Optional API key if using paid/authenticated tier
-    api_key = os.environ.get("TRANSLATION_API_KEY", "").strip()
-    if api_key:
-        url += f"&key={urllib.parse.quote(api_key)}"
-
-    # Set a standard User-Agent header
     request = urllib.request.Request(
         url,
         headers={
-            "User-Agent": "EnglishHindiTranslator/1.0 (CollegeProject; CloudflareWorker)"
+            "User-Agent": "EnglishHindiTranslator/1.0 (CollegeProject)"
         }
     )
 
-    # Execute HTTP GET request with a 6-second timeout
-    with urllib.request.urlopen(request, timeout=6) as response:
+    with urllib.request.urlopen(request, timeout=5) as response:
         response_data = response.read().decode("utf-8")
         data = json.loads(response_data)
         
-        # Check API status response
-        status = data.get("responseStatus")
-        if status == 200 or status == "200":
-            translated_text = data.get("responseData", {}).get("translatedText")
-            if translated_text:
-                return translated_text.strip()
+        translated_text = data.get("responseData", {}).get("translatedText")
+        # Ensure we NEVER return MyMemory rate-limit warnings to the user
+        if translated_text and "MYMEMORY WARNING" not in translated_text.upper():
+            return translated_text.strip()
         
-        # If response was not 200, check if there are alternative matches
         matches = data.get("matches", [])
         if matches and len(matches) > 0:
-            best_match = matches[0].get("translation")
-            if best_match:
-                return best_match.strip()
+            match_text = matches[0].get("translation")
+            if match_text and "MYMEMORY WARNING" not in match_text.upper():
+                return match_text.strip()
 
-        raise RuntimeError(f"Translation service returned unexpected status: {status}")
+        raise RuntimeError("MyMemory returned rate limit or empty translation")
 
 
 def translate_text(text: str, source_lang: str = "en", target_lang: str = "hi") -> dict:
     """
-    Main translation function called by the API.
-    
-    Steps:
-    1. Validates input.
-    2. Returns original text if source and target languages are identical.
-    3. Checks fast phrase dictionary for instant match.
-    4. Calls translation API.
-    5. Returns a clean JSON-serializable dictionary.
-    
-    Returns:
-        dict: Either {"success": True, "translation": "..."}
-              or {"success": False, "error": "..."}
+    Main translation router:
+    1. Validates input
+    2. Checks identity (source == target)
+    3. Checks fast dictionary
+    4. Calls Google Translate (primary)
+    5. Calls MyMemory (secondary fallback)
     """
-    # Step 1: Validate input
     is_valid, error_msg = validate_translation_input(text, source_lang, target_lang)
     if not is_valid:
-        return {
-            "success": False,
-            "error": error_msg
-        }
+        return {"success": False, "error": error_msg}
 
     cleaned_text = text.strip()
 
-    # Step 2: If both languages are identical, return the text unchanged
     if source_lang == target_lang:
-        return {
-            "success": True,
-            "translation": cleaned_text
-        }
+        return {"success": True, "translation": cleaned_text}
 
-    # Step 3: Check instant phrase dictionary (useful for viva demo and offline testing)
+    # Instant dictionary check
     dict_key = (source_lang, target_lang)
     if dict_key in COMMON_PHRASES:
         lookup_key = cleaned_text.lower()
         if lookup_key in COMMON_PHRASES[dict_key]:
-            return {
-                "success": True,
-                "translation": COMMON_PHRASES[dict_key][lookup_key]
-            }
+            return {"success": True, "translation": COMMON_PHRASES[dict_key][lookup_key]}
 
-    # Step 4: Call translation service
+    # Try Primary: Google Translate
+    try:
+        translated = fetch_from_google_translate(cleaned_text, source_lang, target_lang)
+        if translated:
+            return {"success": True, "translation": translated}
+    except Exception:
+        pass
+
+    # Try Secondary: MyMemory
     try:
         translated = fetch_from_mymemory_api(cleaned_text, source_lang, target_lang)
-        return {
-            "success": True,
-            "translation": translated
-        }
-    except urllib.error.URLError:
-        # Check dictionary one more time for partial case match
-        if dict_key in COMMON_PHRASES:
-            for phrase, translation in COMMON_PHRASES[dict_key].items():
-                if phrase in cleaned_text.lower():
-                    return {
-                        "success": True,
-                        "translation": translation
-                    }
-        return {
-            "success": False,
-            "error": "Translation service is temporarily unreachable. Please check your network connection."
-        }
-    except Exception as e:
-        # Safe fallback message without leaking technical internals to the user
-        return {
-            "success": False,
-            "error": "Translation is temporarily unavailable. Please try again."
-        }
+        if translated:
+            return {"success": True, "translation": translated}
+    except Exception:
+        pass
+
+    # Safe error message
+    return {
+        "success": False,
+        "error": "Translation is temporarily unavailable. Please try again."
+    }
 
 
-# Quick test runner for college viva or command-line testing
 if __name__ == "__main__":
-    sample_text = sys.argv[1] if len(sys.argv) > 1 else "Hello, how are you?"
-    print(f"Testing translation for: '{sample_text}' (en -> hi)")
-    result = translate_text(sample_text, "en", "hi")
-    print("Result:", json.dumps(result, ensure_ascii=False, indent=2))
+    sample = sys.argv[1] if len(sys.argv) > 1 else "hi my name is kishan"
+    print(f"Translating: '{sample}'")
+    print("Result:", translate_text(sample, "en", "hi"))
